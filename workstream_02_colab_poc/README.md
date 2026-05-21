@@ -11,6 +11,8 @@ You can use either:
 - `colab_runner.ipynb` for a notebook entry point.
 - `colab_poc.py` directly from a Colab code cell or terminal cell.
 
+For a deep dive on how the script works — process topology, per-query capture sequence, runtime metric pipeline, alert evaluation, and function-by-function reference — see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## What This Builds
 
 - A local Spark Standalone cluster shape in Colab:
