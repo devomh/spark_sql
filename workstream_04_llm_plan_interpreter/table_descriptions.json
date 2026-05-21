@@ -1,0 +1,8 @@
+{
+  "ws2_poc.fact_sales": "Fact table. One row per sale line. Columns: sale_id, date_id, year_month (Hive partition), customer_id, product_id, store_id, promotion_id, quantity, unit_price, discount_amount, net_amount, returned_flag. product_id is intentionally skewed: ~38 percent of rows reference product_id=1. promotion_id=0 represents 'no promotion' on ~62 percent of rows.",
+  "ws2_poc.dim_date": "Date dimension. 730 rows covering 2024-01-01 onward. Columns: date_id (yyyyMMdd int), sale_date, calendar_year, fiscal_year (July-start), month_number, year_month (yyyy-MM), quarter_name, day_of_week, is_weekend.",
+  "ws2_poc.dim_product": "Product dimension. Configured row count (default 2,000). Columns: product_id, category, department, brand_id, is_premium, unit_price, standard_cost.",
+  "ws2_poc.dim_customer": "Customer dimension. Configured row count (default 25,000). Columns: customer_id, segment, region, signup_channel, age_band.",
+  "ws2_poc.dim_store": "Store dimension. Configured row count (default 120). Columns: store_id, region, store_type, opened_year.",
+  "ws2_poc.dim_promotion": "Promotion dimension. Configured row count (default 25, including promotion_id=0 = 'None'). Columns: promotion_id, promotion_type, discount_rate."
+}

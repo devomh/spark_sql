@@ -1,4 +1,9 @@
-# Lesson 3: Query Plan Reading
+# Lesson 4: Query Plan Reading
+
+> **By the end of this lesson you will be able to:**
+> *   Read a Spark physical plan top-down and identify the leaf scans, shuffles, and root.
+> *   Recognise the four most important operators (`Scan`, `Exchange`, `*Aggregate`, the join family) and what each tells you about cost.
+> *   Spot whole-stage codegen boundaries in formatted output.
 
 Reading a Spark execution plan is like reading a tree from the **bottom up**. The data flows from the leaves (Scans) toward the root (Result).
 
@@ -17,9 +22,9 @@ Reading a Spark execution plan is like reading a tree from the **bottom up**. Th
 
 ### 3. Aggregations (The Summarizers)
 Aggregations usually happen in two phases: **Partial** and **Final**.
-*   **HashAggregate**: Uses a hash table. Very fast if the keys fit in memory.
-*   **SortAggregate**: Requires data to be sorted by the grouping key first. Used for very large grouping keys or when memory is tight.
-*   **ObjectHashAggregate**: Used when grouping by complex objects (e.g., strings or custom types).
+*   **HashAggregate**: Uses a hash table. The default and fastest path. Works for primitive and string keys, and for aggregate functions whose buffers fit in a fixed-size off-heap layout (`sum`, `count`, `avg`, `min`, `max`).
+*   **ObjectHashAggregate**: Used when an aggregate **function** has a non-trivial Java-object buffer that can't live in the fixed-size layout — e.g., `collect_list`, `collect_set`, `percentile_approx`, most UDAFs. Slower than `HashAggregate` because buffers are real JVM objects.
+*   **SortAggregate**: A fallback when neither hash variant applies (e.g., the aggregate buffer isn't even mutable). Requires the input to be sorted by the grouping key first, so it usually appears together with a `Sort` node.
 
 ### 4. Shuffles (The Red Flags)
 *   **Exchange**: This is a **Shuffle**. Data is being redistributed across partitions.
@@ -65,4 +70,4 @@ When you run `df.explain(mode="formatted")`, pay attention to the **Operator IDs
 Everything with `codegen id : 1` is running in a single, fast Java loop. The `Exchange` at step (4) breaks that loop, and a new one starts at step (5).
 
 ---
-**Navigation:** [Previous: Spark SQL Planning Model](02_planning_model.md) | [Next: Cost and Statistics](04_cost_and_statistics.md)
+**Navigation:** [Previous: Spark SQL Planning Model](03_planning_model.md) | [Next: Cost and Statistics](05_cost_and_statistics.md)

@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+artifacts/
+data/
+spark-events/
+standalone-logs/
+standalone-pids/
+warehouse/
+worker-*/
+

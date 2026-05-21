@@ -1,22 +1,43 @@
 # Spark SQL Crash Course
 
-Welcome to the Spark SQL Crash Course. This course is designed to help you understand how Spark executes queries, how to read execution plans, and how to optimize your workloads on Spark and Databricks.
+A self-paced introduction to how Spark plans and executes SQL, how to read execution plans, and how to steer the optimizer when it makes the wrong call.
+
+## Prerequisites
+
+You should already be comfortable with:
+*   **SQL**: `SELECT`, `JOIN`, `GROUP BY`, subqueries.
+*   **Python basics** (the examples use PySpark; equivalents in Scala/SQL are noted where relevant).
+*   **The idea of a query optimizer** at a high level (you don't need to have used one before).
+
+You do *not* need prior Spark experience. Lesson 1 motivates everything that follows.
+
+## Setup
+
+For the runnable examples and Lesson 9 exercises you need a working PySpark installation. See **[SETUP.md](SETUP.md)** — it walks through `pip install pyspark`, a minimal `SparkSession`, and your first `df.explain()` call.
+
+If you only want to read the conceptual lessons, no setup is needed.
 
 ## Course Syllabus
 
-1.  **[Spark Execution Model](01_execution_model.md)**: Understand the hierarchy of execution from the SparkSession down to individual tasks and shuffle boundaries.
-2.  **[Spark SQL Planning Model](02_planning_model.md)**: Learn about the Catalyst optimizer and the lifecycle of a query from SQL string to physical execution.
-3.  **[Query Plan Reading](03_query_plan_reading.md)**: Identify key operators like `Scan`, `Exchange`, and various `Join` strategies in physical plans.
-4.  **[Cost and Statistics](04_cost_and_statistics.md)**: See how table statistics and the Cost-Based Optimizer (CBO) influence Spark's decisions.
-5.  **[Databricks Concepts](05_databricks_concepts.md)**: Transition from open-source Spark to the Databricks platform, covering SQL Warehouses and Query Profiles.
-6.  **[Exercises](06_exercises.md)**: Practice what you've learned with guided plan analysis tasks.
-7.  **[Why Spark Planning is Hard](07_planning_challenges.md)**: Explore the fundamental differences between Spark and traditional OLTP databases, and why Adaptive Query Execution (AQE) is critical.
+| # | Lesson | What you'll get out of it |
+| :--- | :--- | :--- |
+| 1 | **[Why Spark Planning is Hard](01_why_planning_is_hard.md)** | The five core challenges (external storage, join estimation, skew, UDFs, partition sizing) that motivate everything else. |
+| 2 | **[Spark Execution Model](02_execution_model.md)** | Driver / Executors / Jobs / Stages / Tasks, and why shuffles are expensive. |
+| 3 | **[Spark SQL Planning Model](03_planning_model.md)** | Catalyst's lifecycle from SQL string to physical plan. |
+| 4 | **[Query Plan Reading](04_query_plan_reading.md)** | Recognising `Scan`, `Exchange`, join strategies, and codegen markers in `EXPLAIN` output. |
+| 5 | **[Cost and Statistics](05_cost_and_statistics.md)** | How table stats drive the Cost-Based Optimizer's decisions. |
+| 6 | **[AQE Deep Dive](06_aqe_deep_dive.md)** | How Adaptive Query Execution rewrites the plan at runtime, with the exact triggers. |
+| 7 | **[The Intervention Toolkit](07_intervention_toolkit.md)** | Hints, configs, and patterns to force the plan you want when the optimizer is wrong. |
+| 8 | **[Databricks Concepts](08_databricks_concepts.md)** | SQL Warehouses, Photon, Query Profiles, Delta features. |
+| 9 | **[Exercises (with answers)](09_exercises.md)** | Practice plan analysis and verify your understanding. |
 
 ## How to use this course
 
-Each lesson builds on the previous one. If you are new to Spark, start at the beginning. If you are already familiar with Spark's architecture but want to dive deep into performance, you might jump straight to **Lesson 3: Query Plan Reading**.
+Lessons build on each other. If you are new to Spark, read them in order. If you already know the architecture, skim Lessons 2–3 and start at Lesson 4.
+
+Each lesson begins with a short **"By the end of this lesson"** block so you know whether to read it carefully or skim.
 
 For a quick reference of terms, see the [Spark SQL Glossary](../docs/spark_sql_glossary.md).
 
 ---
-**Navigation:** [Next: Spark Execution Model](01_execution_model.md)
+**Navigation:** [Next: Why Spark Planning is Hard](01_why_planning_is_hard.md)

@@ -1,0 +1,23 @@
+{
+  "max_exchange_count": 2,
+  "max_sort_merge_join_count": 1,
+  "max_sort_count": 4,
+  "max_estimated_size_bytes": 1073741824,
+  "max_wall_clock_ms": 120000,
+  "max_stage_count": 8,
+  "max_task_count": 256,
+  "max_shuffle_read_bytes": 536870912,
+  "max_shuffle_write_bytes": 536870912,
+  "max_task_skew_ratio": 5,
+  "warn_on_spill_bytes_gt": 0,
+  "expected_broadcast_dimensions": [
+    "dim_date",
+    "dim_product",
+    "dim_customer",
+    "dim_store",
+    "dim_promotion"
+  ],
+  "large_fact_tables": [
+    "ws2_poc.fact_sales"
+  ]
+}

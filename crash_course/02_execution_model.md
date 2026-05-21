@@ -1,4 +1,9 @@
-# Lesson 1: Spark Execution Model
+# Lesson 2: Spark Execution Model
+
+> **By the end of this lesson you will be able to:**
+> *   Name the components of a Spark cluster (Driver, Executors, Cluster Manager) and what each is responsible for.
+> *   Walk through the Job → Stage → Task hierarchy and explain when a new stage starts.
+> *   Identify which operations cause a shuffle and why shuffles dominate query cost.
 
 To understand Spark SQL plans, you must first understand the infrastructure and execution hierarchy that runs them. Spark is a distributed engine, meaning it splits work across many machines.
 
@@ -43,6 +48,9 @@ A Stage is divided into **Tasks**. A Task is the smallest unit of work.
 *   One Task runs on one Core and processes one **Partition** of data.
 *   If you have 100 partitions, Spark will launch 100 tasks for that stage.
 
+> [!NOTE]
+> **Tasks vs. parallelism:** Launching 100 tasks does *not* mean 100 things happen at once. Tasks run in parallel up to your cluster's **total executor cores** (e.g., 4 executors × 4 cores = 16 concurrent tasks). The remaining 84 tasks queue and run in waves. This is why a stage with 200 partitions on a small cluster takes longer than a stage with 20.
+
 ---
 
 ## Lazy Evaluation & Lineage
@@ -77,4 +85,4 @@ A **Shuffle** (appearing as `Exchange` in plans) is the process of redistributin
 > **Optimization Goal:** Many Spark tuning efforts boil down to: **Reduce the number of shuffles and the amount of data being shuffled.**
 
 ---
-**Navigation:** [Previous: Index](README.md) | [Next: Spark SQL Planning Model](02_planning_model.md)
+**Navigation:** [Previous: Why Spark Planning is Hard](01_why_planning_is_hard.md) | [Next: Spark SQL Planning Model](03_planning_model.md)

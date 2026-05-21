@@ -1,13 +1,21 @@
-# Lesson 4: Cost and Statistics
+# Lesson 5: Cost and Statistics
+
+> **By the end of this lesson you will be able to:**
+> *   List what stats Spark gets for free (file size) vs. what requires `ANALYZE TABLE` (row count, NDV, min/max).
+> *   Explain how `spark.sql.autoBroadcastJoinThreshold` interacts with stats to choose a join strategy.
+> *   Read a `EXPLAIN COST` output and identify whether the estimates are credible.
 
 Spark's optimizer is only as good as the information it has. This information comes in the form of **Statistics**. Without them, the Cost-Based Optimizer (CBO) is basically "flying blind."
 
 ## The Magic Threshold: `spark.sql.autoBroadcastJoinThreshold`
 
 This is one of the most important settings in Spark SQL.
-*   **Default:** 10,485,760 bytes (10 MB).
+*   **Default:** 10,485,760 bytes (10 MB). Some distributions (e.g., Databricks) ship with a higher default.
 *   **Behavior:** If Spark **knows** a table is smaller than this threshold, it will automatically use a **Broadcast Hash Join**. 
-*   **The Catch:** Spark only knows the size if you tell it! If statistics are missing, Spark assumes the table is large and will default to a slow `SortMergeJoin`.
+*   **The Catch:** "Knows" depends on the source:
+    *   **Parquet/Delta files:** `sizeInBytes` is read from file footers/manifests for free — Spark almost always has *some* estimate of the on-disk size.
+    *   **`rowCount`, NDV, min/max:** these require `ANALYZE TABLE` for Parquet, or are auto-collected for Delta. Without them the CBO falls back to crude size-based heuristics.
+    *   **Views, CTEs, and derived tables:** stats are propagated only when Spark can infer them — often it can't. The "intermediate result of a 3-way join" usually has no useful stats at all.
 
 ## Types of Statistics
 
@@ -60,7 +68,7 @@ Statistics can be "liars" if they aren't maintained:
 
 ## Pro-Tip: The "Delta Advantage"
 
-If you use **Delta Lake** (common on Databricks), many statistics are collected **automatically** when you write data. You rarely need to run `ANALYZE TABLE` on Delta tables, but it's still a good habit for traditional Parquet/CSV tables in a shared catalog.
+If you use **Delta Lake** (common on Databricks), file-level min/max for the first 32 columns and `numRecords` per file are collected **automatically** on write. This usually means Delta queries get good size and basic per-column stats without you doing anything. You still benefit from `ANALYZE TABLE ... FOR COLUMNS` for column-level NDV (used by selectivity estimation), and you should always run it for traditional Parquet/CSV tables in a shared catalog.
 
 ---
-**Navigation:** [Previous: Query Plan Reading](03_query_plan_reading.md) | [Next: Databricks Concepts](05_databricks_concepts.md)
+**Navigation:** [Previous: Query Plan Reading](04_query_plan_reading.md) | [Next: AQE Deep Dive](06_aqe_deep_dive.md)

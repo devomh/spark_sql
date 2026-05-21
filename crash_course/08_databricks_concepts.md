@@ -1,4 +1,9 @@
-# Lesson 5: Databricks Concepts
+# Lesson 8: Databricks Concepts
+
+> **By the end of this lesson you will be able to:**
+> *   Describe what a Databricks SQL Warehouse adds over a plain Spark cluster.
+> *   Read a Databricks Query Profile and find the four diagnostic metrics that matter.
+> *   Name the Delta features that change how you should reason about plans.
 
 While Spark is the engine, Databricks is the platform. It adds features that make it easier to manage, secure, and **observe** Spark workloads.
 
@@ -52,4 +57,4 @@ Databricks uses machine learning to predict which data you will need next and pr
 *   **Use Serverless** to eliminate "warm-up" time and management overhead.
 
 ---
-**Navigation:** [Previous: Cost and Statistics](04_cost_and_statistics.md) | [Next: Exercises](06_exercises.md)
+**Navigation:** [Previous: The Intervention Toolkit](07_intervention_toolkit.md) | [Next: Exercises](09_exercises.md)
