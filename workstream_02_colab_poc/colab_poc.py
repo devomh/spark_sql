@@ -187,6 +187,7 @@ def create_spark_session(config: PocConfig):
         .config("spark.sql.adaptive.skewJoin.enabled", "true")
         .config("spark.sql.shuffle.partitions", str(config.shuffle_partitions))
         .config("spark.sql.autoBroadcastJoinThreshold", str(10 * 1024 * 1024))
+        .config("spark.sql.debug.maxToStringFields", "200")
         .config("spark.executor.cores", "1")
         .config("spark.executor.memory", "1g")
         .config("spark.driver.memory", "2g")
@@ -840,7 +841,7 @@ def run_query_capture(
     runtime_indicators = enrich_runtime_metrics_from_event_log(
         spark, runtime_indicators, config.base_dir / "spark-events"
     )
-    spark.sparkContext.clearJobGroup()
+    spark.sparkContext._jsc.clearJobGroup()
 
     executed_plan = ""
     try:
