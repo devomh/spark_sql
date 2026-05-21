@@ -1,5 +1,7 @@
 # Workstream 2: Colab Spark SQL Plan POC
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/devomh/spark_sql/blob/main/workstream_02_colab_poc/colab_runner.ipynb)
+
 This folder contains a Colab-ready proof of concept for generating Spark SQL plans and saving them as structured artifacts for later analysis.
 
 The POC uses PySpark as the runtime wrapper, but the workload is written as Spark SQL strings. This keeps the experience close to raw Spark SQL while still being practical in Colab.
