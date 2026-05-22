@@ -1,8 +1,15 @@
 # Subagent Metaprompts for the Plan Prompts
 
-The two prompt templates in this folder — `plan_interpreter_prompt.md` and
-`plan_explainer_prompt.md` — *describe* how a model should behave, but they
-are not themselves runnable. The automated LLM caller that will consume them
+The prompt templates in this folder *describe* how a model should behave, but
+they are not themselves runnable. There are two families:
+
+- the **plan** prompts — `plan_interpreter_prompt.md` and
+  `plan_explainer_prompt.md` — which consume an assembled `llm_package.json`;
+- the **cost** prompts — `cost_interpreter_prompt.md` and
+  `cost_explainer_prompt.md` — which consume a single `EXPLAIN COST` output
+  (`explain_cost.txt`).
+
+The automated LLM caller that will consume the plan prompts
 (`llm_package.json` + template → `llm_output.json`) does not exist yet.
 
 Until it does, the templates are exercised by hand: a **metaprompt** wraps a
@@ -107,6 +114,44 @@ You are role-playing as the LLM described by a prompt template. Do the following
 
 Return ONLY the final JSON object as your response — do not write any files, do not add commentary about your process. Read ONLY the two files listed above; do not read any other files in the repository (in particular, do not look for any existing answer, notes file, or other prompt template). Produce the output solely from the prompt template and the package file.
 ```
+
+## Metaprompt C — the cost prompts (`cost_interpreter_prompt.md` / `cost_explainer_prompt.md`)
+
+The cost prompts interpret a single `EXPLAIN COST` output, **not** the
+assembled `llm_package.json`. The input file is `explain_cost.txt` inside the
+query subdirectory. The metaprompt is otherwise the same shape; substitute
+`<REPO_ROOT>` before dispatching.
+
+```text
+You are role-playing as the LLM described by a prompt template. Do the following:
+
+1. Read the prompt template at:
+   <REPO_ROOT>/workstream_04_llm_plan_interpreter/prompts/{COST_TEMPLATE_FILE}
+
+2. Treat that file as your full system instructions.
+
+3. Read the EXPLAIN COST output for query {QUERY_ID} from this run:
+   <REPO_ROOT>/workstream_02_colab_poc/artifacts/runs/{RUN_ID}/{QUERY_DIR}/explain_cost.txt
+
+4. Following the prompt template exactly, produce the {OUTPUT_KIND} for {QUERY_ID}.
+
+Return ONLY the final {OUTPUT_FORMAT} as your response — do not write any files,
+do not add commentary about your process. Read ONLY the two files listed above;
+do not read any other files in the repository. Produce the output solely from
+the prompt template and the EXPLAIN COST file.
+```
+
+Placeholder values per cost template:
+
+| Placeholder | `cost_explainer_prompt.md` | `cost_interpreter_prompt.md` |
+|---|---|---|
+| `{COST_TEMPLATE_FILE}` | `cost_explainer_prompt.md` | `cost_interpreter_prompt.md` |
+| `{OUTPUT_KIND}` | `plain-language cost explanation` | `JSON cost interpretation` |
+| `{OUTPUT_FORMAT}` | `Markdown explanation` | `JSON object` |
+
+A query with a before-stats capture (q001, q004, q005) has its own
+`explain_cost.txt` in each capture's subdirectory — run them separately, or
+pair them in one metaprompt for a with/without contrast.
 
 ## Run data
 

@@ -1,0 +1,52 @@
+{
+  "summary": "The query joins fact_sales to dim_date, dim_product, and dim_store, then aggregates per year_month/category/region to produce monthly category revenue metrics. The largest estimated cost is on dim_product at 150.4 KiB, since the fact_sales relation reports a suspect rowCount=0 that collapses every estimate above the leaf scans to 1.0 B.",
+  "relations": [
+    {
+      "name": "spark_catalog.ws2_poc.fact_sales",
+      "estimated_size": "1.0 B",
+      "estimated_row_count": "0",
+      "stats_quality": "suspect",
+      "note": "Statistics(sizeInBytes=1.0 B, rowCount=0) on the central fact table the query clearly reads from. A rowCount of 0 with a 1.0 B size is a present-but-wrong (stale or mis-computed) statistic, not a genuinely empty table."
+    },
+    {
+      "name": "spark_catalog.ws2_poc.dim_date",
+      "estimated_size": "62.7 KiB",
+      "estimated_row_count": "730",
+      "stats_quality": "trustworthy",
+      "note": "Statistics(sizeInBytes=62.7 KiB, rowCount=730) is a plausible row count for a date dimension (~2 years of days), and the size shrinks to 22.1 KiB after the year_month Filter/Project, as expected."
+    },
+    {
+      "name": "spark_catalog.ws2_poc.dim_product",
+      "estimated_size": "150.4 KiB",
+      "estimated_row_count": "2.00E+3",
+      "stats_quality": "trustworthy",
+      "note": "Statistics(sizeInBytes=150.4 KiB, rowCount=2.00E+3) is a plausible product-dimension estimate, and the size drops to 68.4 KiB after the isnotnull Filter/Project narrows columns."
+    },
+    {
+      "name": "spark_catalog.ws2_poc.dim_store",
+      "estimated_size": "6.4 KiB",
+      "estimated_row_count": "120",
+      "stats_quality": "trustworthy",
+      "note": "Statistics(sizeInBytes=6.4 KiB, rowCount=120) is a plausible store-dimension estimate, shrinking to 3.9 KiB after the isnotnull Filter/Project."
+    }
+  ],
+  "dominant_estimate": {
+    "operator": "Relation spark_catalog.ws2_poc.dim_product (parquet scan)",
+    "estimated_size": "150.4 KiB",
+    "reason": "Because fact_sales reports rowCount=0 and 1.0 B, every operator on the fact-side path is estimated at 1.0 B, so the largest credible sizeInBytes belongs to the dim_product leaf at 150.4 KiB — the largest of the dimension tables."
+  },
+  "estimate_propagation": "dim_date, dim_product, and dim_store leaves carry plausible estimates that shrink correctly through their Filter and Project operators. The fact_sales leaf, however, starts at Statistics(sizeInBytes=1.0 B, rowCount=0); from the Filter above fact_sales upward, every operator on the fact path — the three Inner Joins, the intermediate Projects, the Aggregate, and the final Sort — collapses to sizeInBytes=1.0 B (rowCount=0 where shown). The suspect leaf estimate has propagated up and made the whole upper tree's estimates untrustworthy.",
+  "join_strategy_implications": [
+    "The Physical Plan uses BroadcastHashJoin for all three joins (against dim_date, dim_product, and dim_store), each with BuildLeft. Because the Inner Join estimates all collapsed to 1.0 B, the optimizer saw both sides as far under autoBroadcastJoinThreshold and broadcast freely; the BuildLeft choice reflects this collapsed sizing rather than a true comparison of side sizes.",
+    "If fact_sales actually contains many rows (its rowCount=0 is suspect), broadcasting the left side of the joins could be a poor choice; with correct statistics the optimizer would likely build the broadcast side from the small dimension tables instead."
+  ],
+  "stats_warnings": [
+    "spark_catalog.ws2_poc.fact_sales reports Statistics(sizeInBytes=1.0 B, rowCount=0); the query reads from it, so this 0 row count is stale or mis-computed and must not be trusted as a real empty table.",
+    "Every operator above the fact_sales scan (the three Inner Joins, the Aggregate, and the Sort, all at sizeInBytes=1.0 B) inherits this bad estimate and is therefore equally untrustworthy."
+  ],
+  "suggestions": [
+    "Run ANALYZE TABLE spark_catalog.ws2_poc.fact_sales COMPUTE STATISTICS FOR ALL COLUMNS to replace the suspect rowCount=0 with accurate statistics.",
+    "After re-analyzing, re-run EXPLAIN COST to confirm the join and aggregate estimates no longer collapse to 1.0 B and that the chosen join strategy still makes sense."
+  ],
+  "confidence": "low"
+}

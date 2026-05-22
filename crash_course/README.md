@@ -37,6 +37,8 @@ Lessons build on each other. If you are new to Spark, read them in order. If you
 
 Each lesson begins with a short **"By the end of this lesson"** block so you know whether to read it carefully or skim.
 
+**Worked examples.** The [`worked_examples/`](worked_examples/) folder applies the lessons to real query artifacts captured in this repo. Start with [Reading an EXPLAIN COST output (q001)](worked_examples/cost_walkthrough_q001.md), a hands-on companion to Lesson 5.
+
 For a quick reference of terms, see the [Spark SQL Glossary](../docs/spark_sql_glossary.md).
 
 ---

@@ -1,0 +1,51 @@
+== Optimized Logical Plan ==
+Sort [year_month#329 ASC NULLS FIRST, net_revenue#477 DESC NULLS LAST], true, Statistics(sizeInBytes=6.37E+29 B)
++- Aggregate [year_month#329, category#357, region#403], [year_month#329, category#357, region#403, count(1) AS sale_line_count#474L, count(distinct customer_id#435L) AS distinct_customers#475L, sum(quantity#439) AS units_sold#476L, round(sum(net_amount#442), 2) AS net_revenue#477, round(avg(net_amount#442), 2) AS avg_sale_amount#478], Statistics(sizeInBytes=6.37E+29 B)
+   +- Project [customer_id#435L, quantity#439, net_amount#442, year_month#329, category#357, region#403], Statistics(sizeInBytes=5.19E+29 B)
+      +- Join Inner, (store_id#437L = store_id#402L), Statistics(sizeInBytes=6.14E+29 B)
+         :- Project [customer_id#435L, store_id#437L, quantity#439, net_amount#442, year_month#329, category#357], Statistics(sizeInBytes=2.07E+26 B)
+         :  +- Join Inner, (product_id#436L = product_id#356L), Statistics(sizeInBytes=2.50E+26 B)
+         :     :- Project [customer_id#435L, product_id#436L, store_id#437L, quantity#439, net_amount#442, year_month#329], Statistics(sizeInBytes=1.63E+22 B)
+         :     :  +- Join Inner, (date_id#434 = date_id#324), Statistics(sizeInBytes=1.83E+22 B)
+         :     :     :- Project [date_id#434, customer_id#435L, product_id#436L, store_id#437L, quantity#439, net_amount#442], Statistics(sizeInBytes=3.8 EiB)
+         :     :     :  +- Filter (((isnotnull(returned_flag#443) AND NOT returned_flag#443) AND isnotnull(date_id#434)) AND (isnotnull(product_id#436L) AND isnotnull(store_id#437L))), Statistics(sizeInBytes=8.0 EiB)
+         :     :     :     +- Relation spark_catalog.ws2_poc.fact_sales[sale_id#433L,date_id#434,customer_id#435L,product_id#436L,store_id#437L,promotion_id#438L,quantity#439,unit_price#440,discount_amount#441,net_amount#442,returned_flag#443,year_month#444] parquet, Statistics(sizeInBytes=8.0 EiB)
+         :     :     +- Project [date_id#324, year_month#329], Statistics(sizeInBytes=4.1 KiB)
+         :     :        +- Filter ((isnotnull(year_month#329) AND ((year_month#329 >= 2024-04) AND (year_month#329 <= 2025-03))) AND isnotnull(date_id#324)), Statistics(sizeInBytes=11.4 KiB)
+         :     :           +- Relation spark_catalog.ws2_poc.dim_date[date_id#324,sale_date#325,calendar_year#326,fiscal_year#327,month_number#328,year_month#329,quarter_name#330,day_of_week#331,is_weekend#332] parquet, Statistics(sizeInBytes=11.4 KiB)
+         :     +- Project [product_id#356L, category#357], Statistics(sizeInBytes=15.0 KiB)
+         :        +- Filter isnotnull(product_id#356L), Statistics(sizeInBytes=32.1 KiB)
+         :           +- Relation spark_catalog.ws2_poc.dim_product[product_id#356L,category#357,department#358,brand_id#359,is_premium#360,unit_price#361,standard_cost#362] parquet, Statistics(sizeInBytes=32.1 KiB)
+         +- Project [store_id#402L, region#403], Statistics(sizeInBytes=2.9 KiB)
+            +- Filter isnotnull(store_id#402L), Statistics(sizeInBytes=4.8 KiB)
+               +- Relation spark_catalog.ws2_poc.dim_store[store_id#402L,region#403,store_type#404,opened_year#405] parquet, Statistics(sizeInBytes=4.8 KiB)
+
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=false
++- Sort [year_month#329 ASC NULLS FIRST, net_revenue#477 DESC NULLS LAST], true, 0
+   +- Exchange rangepartitioning(year_month#329 ASC NULLS FIRST, net_revenue#477 DESC NULLS LAST, 8), ENSURE_REQUIREMENTS, [plan_id=541]
+      +- HashAggregate(keys=[year_month#329, category#357, region#403], functions=[count(1), sum(quantity#439), sum(net_amount#442), avg(net_amount#442), count(distinct customer_id#435L)], output=[year_month#329, category#357, region#403, sale_line_count#474L, distinct_customers#475L, units_sold#476L, net_revenue#477, avg_sale_amount#478])
+         +- Exchange hashpartitioning(year_month#329, category#357, region#403, 8), ENSURE_REQUIREMENTS, [plan_id=538]
+            +- HashAggregate(keys=[year_month#329, category#357, region#403], functions=[merge_count(1), merge_sum(quantity#439), merge_sum(net_amount#442), merge_avg(net_amount#442), partial_count(distinct customer_id#435L)], output=[year_month#329, category#357, region#403, count#497L, sum#499L, sum#501, sum#504, count#505L, count#508L])
+               +- HashAggregate(keys=[year_month#329, category#357, region#403, customer_id#435L], functions=[merge_count(1), merge_sum(quantity#439), merge_sum(net_amount#442), merge_avg(net_amount#442)], output=[year_month#329, category#357, region#403, customer_id#435L, count#497L, sum#499L, sum#501, sum#504, count#505L])
+                  +- Exchange hashpartitioning(year_month#329, category#357, region#403, customer_id#435L, 8), ENSURE_REQUIREMENTS, [plan_id=534]
+                     +- HashAggregate(keys=[year_month#329, category#357, region#403, customer_id#435L], functions=[partial_count(1), partial_sum(quantity#439), partial_sum(net_amount#442), partial_avg(net_amount#442)], output=[year_month#329, category#357, region#403, customer_id#435L, count#497L, sum#499L, sum#501, sum#504, count#505L])
+                        +- Project [customer_id#435L, quantity#439, net_amount#442, year_month#329, category#357, region#403]
+                           +- BroadcastHashJoin [store_id#437L], [store_id#402L], Inner, BuildRight, false
+                              :- Project [customer_id#435L, store_id#437L, quantity#439, net_amount#442, year_month#329, category#357]
+                              :  +- BroadcastHashJoin [product_id#436L], [product_id#356L], Inner, BuildRight, false
+                              :     :- Project [customer_id#435L, product_id#436L, store_id#437L, quantity#439, net_amount#442, year_month#329]
+                              :     :  +- BroadcastHashJoin [date_id#434], [date_id#324], Inner, BuildRight, false
+                              :     :     :- Project [date_id#434, customer_id#435L, product_id#436L, store_id#437L, quantity#439, net_amount#442]
+                              :     :     :  +- Filter ((((isnotnull(returned_flag#443) AND NOT returned_flag#443) AND isnotnull(date_id#434)) AND isnotnull(product_id#436L)) AND isnotnull(store_id#437L))
+                              :     :     :     +- FileScan parquet spark_catalog.ws2_poc.fact_sales[date_id#434,customer_id#435L,product_id#436L,store_id#437L,quantity#439,net_amount#442,returned_flag#443,year_month#444] Batched: true, DataFilters: [isnotnull(returned_flag#443), NOT returned_flag#443, isnotnull(date_id#434), isnotnull(product_i..., Format: Parquet, Location: CatalogFileIndex(1 paths)[file:/content/spark_sql_plan_poc/data/fact_sales], PartitionFilters: [], PushedFilters: [IsNotNull(returned_flag), Not(EqualTo(returned_flag,true)), IsNotNull(date_id), IsNotNull(produc..., ReadSchema: struct<date_id:int,customer_id:bigint,product_id:bigint,store_id:bigint,quantity:int,net_amount:d...
+                              :     :     +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)),false), [plan_id=521]
+                              :     :        +- Filter (((isnotnull(year_month#329) AND (year_month#329 >= 2024-04)) AND (year_month#329 <= 2025-03)) AND isnotnull(date_id#324))
+                              :     :           +- FileScan parquet spark_catalog.ws2_poc.dim_date[date_id#324,year_month#329] Batched: true, DataFilters: [isnotnull(year_month#329), (year_month#329 >= 2024-04), (year_month#329 <= 2025-03), isnotnull(d..., Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/content/spark_sql_plan_poc/data/dim_date], PartitionFilters: [], PushedFilters: [IsNotNull(year_month), GreaterThanOrEqual(year_month,2024-04), LessThanOrEqual(year_month,2025-0..., ReadSchema: struct<date_id:int,year_month:string>
+                              :     +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=525]
+                              :        +- Filter isnotnull(product_id#356L)
+                              :           +- FileScan parquet spark_catalog.ws2_poc.dim_product[product_id#356L,category#357] Batched: true, DataFilters: [isnotnull(product_id#356L)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/content/spark_sql_plan_poc/data/dim_product], PartitionFilters: [], PushedFilters: [IsNotNull(product_id)], ReadSchema: struct<product_id:bigint,category:string>
+                              +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]),false), [plan_id=529]
+                                 +- Filter isnotnull(store_id#402L)
+                                    +- FileScan parquet spark_catalog.ws2_poc.dim_store[store_id#402L,region#403] Batched: true, DataFilters: [isnotnull(store_id#402L)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/content/spark_sql_plan_poc/data/dim_store], PartitionFilters: [], PushedFilters: [IsNotNull(store_id)], ReadSchema: struct<store_id:bigint,region:string>
+

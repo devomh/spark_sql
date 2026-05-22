@@ -24,6 +24,9 @@ In standard Spark, you have the Spark UI (which is great but complex). Databrick
 3.  **Spill to Disk:** If an executor runs out of memory (RAM) during a shuffle or sort, it writes temporary data to disk. **Spill is a major performance killer.**
 4.  **Pruning:** Look for "Partitions Pruned" and "Files Pruned." If these are 0, your query is doing a full table scan.
 
+> [!NOTE]
+> These Query Profile numbers are **measured cost** — what the query actually did. They are the post-run counterpart to the optimizer's pre-run **estimated cost** from `EXPLAIN COST` (rows and bytes); see Lesson 5, ["Two kinds of cost"](05_cost_and_statistics.md).
+
 ---
 
 ## Governance: Unity Catalog (UC)

@@ -84,5 +84,8 @@ A **Shuffle** (appearing as `Exchange` in plans) is the process of redistributin
 > [!TIP]
 > **Optimization Goal:** Many Spark tuning efforts boil down to: **Reduce the number of shuffles and the amount of data being shuffled.**
 
+> [!NOTE]
+> **This hierarchy is where *measured cost* lives.** The job/stage/task counts, per-task durations, and bytes shuffled or spilled that you read off a finished run are the **measured cost** of a query — what actually happened. It is the post-run counterpart to the optimizer's pre-run **estimated cost** (rows and bytes); see Lesson 5, ["Two kinds of cost"](05_cost_and_statistics.md).
+
 ---
 **Navigation:** [Previous: Why Spark Planning is Hard](01_why_planning_is_hard.md) | [Next: Spark SQL Planning Model](03_planning_model.md)
