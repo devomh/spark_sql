@@ -1,0 +1,33 @@
+{
+  "summary": "This is the same monthly category/region revenue rollup as q001, but captured before ANALYZE TABLE was run. With no statistics the optimizer falls back to the default size for fact_sales, cost estimates explode, and the query runs much slower - 5543 ms across 6 stages and 9 tasks.",
+  "expensive_parts": [
+    {
+      "operator": "Scan",
+      "reason": "fact_sales has no table statistics, so EXPLAIN COST falls back to the default relation size of 8.0 EiB for the fact table. This is the root cause of every downstream estimate being wrong.",
+      "evidence": "cost: 'Relation spark_catalog.ws2_poc.fact_sales[...] parquet, Statistics(sizeInBytes=8.0 EiB)'"
+    },
+    {
+      "operator": "BroadcastHashJoin",
+      "reason": "Because the fact-side input is estimated at 8 EiB, the inner joins propagate nonsensical cardinalities, which trips the large_estimated_plan_size alert at the Long.MaxValue sentinel. The physical joins are still broadcast (the dimensions get small file-based estimates), so the damage is in the estimates, not the join strategy.",
+      "evidence": "cost: 'Join Inner, (store_id#437L = store_id#402L), Statistics(sizeInBytes=6.14E+29 B)'; alert large_estimated_plan_size value = 9223372036854775808"
+    },
+    {
+      "operator": "HashAggregate",
+      "reason": "COUNT(DISTINCT f.customer_id) forces the same two-level aggregation with an extra hash-partition Exchange on (year_month, category, region, customer_id) seen in the with-stats run.",
+      "evidence": "executed plan: 'HashAggregate(keys=[year_month#329, category#357, region#403, customer_id#435L], functions=[partial_count(1), ...])'"
+    }
+  ],
+  "suggestions": [
+    "Run ANALYZE TABLE ws2_poc.fact_sales COMPUTE STATISTICS FOR ALL COLUMNS, and the same for dim_date, dim_product and dim_store. The cost plan currently sizes fact_sales at the 8.0 EiB default; real statistics will replace the Long.MaxValue estimate that fires large_estimated_plan_size.",
+    "After ANALYZE, re-run the query and compare wall_clock_ms - it is currently 5543 ms across 6 stages / 9 tasks, with a max task of 1281 ms; this should drop sharply once the optimizer can size the broadcast and aggregation stages from real statistics.",
+    "If exact distinct precision is not required, test approx_count_distinct(f.customer_id) to drop the extra (..., customer_id) Exchange and HashAggregate stage."
+  ],
+  "warnings": [
+    "Statistics are missing: indicator_summary.estimated_size_in_bytes_max is 9223372036854775808 (Long.MaxValue) and estimated_row_count_max is null. Size- and cardinality-based reasoning is unreliable until ANALYZE TABLE is run.",
+    "The large_estimated_plan_size alert (value 9223372036854775808 vs threshold 1 GiB) is an artifact of the missing fact-table statistics, not evidence of a genuinely huge result.",
+    "indicator_summary counts look inflated versus the executed plan: exchange_count = 18, broadcast_join_count = 18, sort_count = 10, but the executed plan shows only 3 BroadcastHashJoins, ~6 Exchanges and 1 Sort - likely summed across the formatted/executed/cost excerpts.",
+    "shuffle_read_bytes and shuffle_write_bytes are both 0 despite shuffle Exchanges; this may be genuine for small data or may indicate the metrics were not captured.",
+    "Plan excerpts were truncated to 4000 chars and file paths masked (see trimming_notes)."
+  ],
+  "confidence": "medium"
+}

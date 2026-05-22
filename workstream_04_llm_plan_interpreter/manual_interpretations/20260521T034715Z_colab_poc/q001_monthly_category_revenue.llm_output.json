@@ -1,0 +1,32 @@
+{
+  "summary": "q001 is a monthly category/region revenue rollup: it joins fact_sales to three small dimensions (dim_date, dim_product, dim_store), filters to a 12-month window plus non-returned sales, then aggregates with a COUNT(DISTINCT customer_id). With table statistics available the optimizer broadcasts all three dimensions and the query is cheap - 402 ms wall clock in a single task, with no spill.",
+  "expensive_parts": [
+    {
+      "operator": "HashAggregate",
+      "reason": "COUNT(DISTINCT f.customer_id) forces a two-level aggregation: Spark first aggregates by (year_month, category, region, customer_id), then re-aggregates by (year_month, category, region). This adds an extra hash-partition Exchange that a plain COUNT would not need.",
+      "evidence": "executed plan: 'Exchange hashpartitioning(year_month#15286, category#15291, region#15298, customer_id#15271L, 8), ENSURE_REQUIREMENTS'"
+    },
+    {
+      "operator": "Exchange",
+      "reason": "ORDER BY year_month, net_revenue DESC requires a range-partitioning shuffle ahead of the final Sort. It is unavoidable given the ORDER BY, but it is the top shuffle in the tree.",
+      "evidence": "executed plan: 'Exchange rangepartitioning(year_month#15286 ASC NULLS FIRST, net_revenue#15266 DESC NULLS LAST, 8), ENSURE_REQUIREMENTS'"
+    },
+    {
+      "operator": "BroadcastHashJoin",
+      "reason": "All three dimension joins resolve to broadcast joins. This is the cheap outcome - the dimensions are tiny (estimated_size_in_bytes_max = 154009) - but broadcast joins make up the bulk of the operator tree.",
+      "evidence": "executed plan: 'BroadcastHashJoin [store_id#15273L], [store_id#15297L], Inner, BuildLeft'"
+    }
+  ],
+  "suggestions": [
+    "Refresh statistics on fact_sales: EXPLAIN COST reports the fact relation as 'Statistics(sizeInBytes=1.0 B, rowCount=0)', which is inconsistent with the query producing a result. Run ANALYZE TABLE ws2_poc.fact_sales COMPUTE STATISTICS FOR ALL COLUMNS so future plans are not optimized against a zero-row estimate.",
+    "If an exact distinct count is not required, test approx_count_distinct(f.customer_id) in place of COUNT(DISTINCT f.customer_id) and compare wall_clock_ms - this removes the extra (year_month, category, region, customer_id) Exchange and HashAggregate stage.",
+    "Treat the many_exchanges and many_sorts alerts as low priority here: at 402 ms in a single task they are not a real cost. Confirm whether the indicator counts are being summed across multiple EXPLAIN files."
+  ],
+  "warnings": [
+    "indicator_summary counts look inflated versus the executed plan: it reports exchange_count = 18, broadcast_join_count = 18 and sort_count = 10, but the executed plan shows only 3 BroadcastHashJoins, ~6 Exchanges and 1 Sort. The counts appear to be aggregated across the formatted/executed/cost excerpts.",
+    "EXPLAIN COST reports fact_sales as rowCount=0 / sizeInBytes=1.0 B. That statistic is untrustworthy (the query produced output), so cardinality reasoning about the fact side is unreliable.",
+    "shuffle_read_bytes and shuffle_write_bytes are both 0 despite shuffle Exchanges being present; with this little data that may be genuine, or the metrics may not have been captured.",
+    "Plan excerpts were truncated to 4000 chars and file paths masked (see trimming_notes), so lower operator detail is not visible."
+  ],
+  "confidence": "medium"
+}
