@@ -32,20 +32,28 @@ role of the model described in the prompt.
    That single JSON is the only input the interpreter prompt expects. Its
    fields are listed in the prompt's "Input" section.
 
-3. **Interpret it against `prompts/plan_interpreter_prompt.md`.**
-   Treat the prompt as the model's instructions and the package as the model
-   input. Produce the single JSON object the prompt's "Output contract"
-   mandates: `summary`, `expensive_parts[]`, `suggestions[]`, `warnings[]`,
-   `confidence`. Follow the prompt's grounding rules — every claim tied to a
-   `plan_excerpts` snippet, an `indicator_summary` field, a `runtime_metrics`
-   field, or an `alerts` entry; null/missing metrics flagged under `warnings`;
-   `confidence` downgraded when stats are missing.
+3. **Interpret it against a prompt template.** Two templates live in
+   `prompts/`, and either can be applied to the same package:
+   - `plan_interpreter_prompt.md` — a JSON tuning review (`summary`,
+     `expensive_parts[]`, `suggestions[]`, `warnings[]`, `confidence`).
+   - `plan_explainer_prompt.md` — a plain-language Markdown explanation
+     focused on the tables, partitions, on-disk locations, and data
+     characteristics the query touches.
+   Treat the chosen template as the model's instructions and the package as
+   the model input, and follow its grounding rules — every claim tied to a
+   `plan_excerpts` snippet, an `indicator_summary` / `runtime_metrics` field,
+   or an `alerts` entry.
 
-4. **Save the output here, one JSON file per query.**
-   File naming mirrors what the future caller will write inside the run tree
-   (`<query_id>.llm_output.json`), but kept in this separate folder so the run
-   artifacts stay untouched and the manual drafts remain comparable to the
-   eventual automated output.
+4. **Save the output here, one file per query per prompt.**
+   `plan_interpreter_prompt.md` output is named `<query_id>.llm_output.json`,
+   mirroring what the future caller will write inside the run tree;
+   `plan_explainer_prompt.md` output is named `<query_id>_plan_explanation.md`.
+   Both are kept in this separate folder so the run artifacts stay untouched
+   and the manual drafts remain comparable to the eventual automated output.
+   A subagent verification run of a template (dispatched via the metaprompts
+   in `../prompts/meta.md`) is saved with a `.subagent.` infix — e.g.
+   `<query_id>.subagent.llm_output.json` — so it sits beside the hand-written
+   draft for comparison without overwriting it.
 
 ## Layout
 
@@ -53,9 +61,13 @@ role of the model described in the prompt.
 manual_interpretations/
 ├── README.md                       <- this file
 └── 20260521T034715Z_colab_poc/      <- one folder per Workstream 2 run
-    ├── q001_monthly_category_revenue.llm_output.json
-    ├── q001_monthly_category_revenue_before_stats.llm_output.json
-    └── q001_contrast_notes.md       <- contrast + caveats to revisit
+    ├── q001_monthly_category_revenue.llm_output.json              <- plan_interpreter_prompt.md (with stats)
+    ├── q001_monthly_category_revenue_before_stats.llm_output.json <- plan_interpreter_prompt.md (before stats)
+    ├── q001_contrast_notes.md       <- contrast + caveats to revisit
+    ├── q001_plan_explanation.md     <- plan_explainer_prompt.md (plain-language)
+    ├── q002_customer_window_revenue.llm_output.json               <- plan_interpreter_prompt.md
+    ├── q002_customer_window_revenue.subagent.llm_output.json       <- plan_interpreter_prompt.md, subagent verification run (Metaprompt B)
+    └── q002_plan_explanation.md     <- plan_explainer_prompt.md (plain-language)
 ```
 
 ## Open items for revision

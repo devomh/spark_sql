@@ -1,0 +1,33 @@
+{
+  "summary": "q002 finds each customer's top-3 revenue days and a 7-day rolling revenue figure. It aggregates fact_sales (joined to dim_customer and dim_date) into per-customer-per-day revenue, then applies two window functions partitioned by customer_id. The query is cheap - 1229 ms wall clock in a single task with no spill.",
+  "expensive_parts": [
+    {
+      "operator": "Window",
+      "reason": "The query runs two window functions over PARTITION BY customer_id - a 7-day rolling SUM and a ROW_NUMBER() rank. Each Window operator is fed by its own Sort, so the customer-partitioned data is sorted twice (once by sale_date, once by daily_revenue DESC). This window stack is the defining cost of the query.",
+      "evidence": "executed plan: 'Window [sum(daily_revenue#15402) windowspecdefinition(customer_id#15271L, sale_date#15282 ASC NULLS FIRST, specifiedwindowframe(RowFrame, -6, currentrow$())) AS _we0#15415]' and 'Window [row_number() ...]'"
+    },
+    {
+      "operator": "Exchange",
+      "reason": "Two hash-partitioning shuffles are required: one on (customer_id, segment, region, sale_date) for the daily GROUP BY, and one on customer_id to co-locate each customer's rows for both window functions. Both windows share the single customer_id Exchange.",
+      "evidence": "executed plan: 'Exchange hashpartitioning(customer_id#15271L, 8), ENSURE_REQUIREMENTS' and 'Exchange hashpartitioning(customer_id#15271L, segment#15408, region#15409, sale_date#15282, 8), ENSURE_REQUIREMENTS'"
+    },
+    {
+      "operator": "HashAggregate",
+      "reason": "The daily_customer CTE GROUP BY customer_id, segment, region, sale_date runs as the usual two-stage HashAggregate (partial aggregation, shuffle, final aggregation) before the window stage.",
+      "evidence": "executed plan: 'HashAggregate(keys=[customer_id#15271L, segment#15408, region#15409, sale_date#15282], functions=[count(1), sum(net_amount#15278)])'"
+    }
+  ],
+  "suggestions": [
+    "Refresh statistics on fact_sales: EXPLAIN COST reports the fact relation as 'Statistics(sizeInBytes=1.0 B, rowCount=0)', which is inconsistent with the query producing results. Run ANALYZE TABLE ws2_poc.fact_sales COMPUTE STATISTICS FOR ALL COLUMNS so the optimizer is not sizing the plan against a zero-row estimate.",
+    "To avoid scanning the whole fact table, add a predicate on the fact_sales partition column directly (e.g. f.year_month >= '2024-07') alongside the existing d.sale_date filter. The fact scan currently shows PartitionFilters: [], so every partition folder is read.",
+    "Treat the many_exchanges and many_sorts alerts as low priority for this query: at 1229 ms in a single task they are not a real cost. Confirm whether the indicator counts are being summed across multiple EXPLAIN files."
+  ],
+  "warnings": [
+    "indicator_summary counts look inflated versus the executed plan: it reports window_count = 18, sort_count = 16, exchange_count = 12, hash_aggregate_count = 12 and broadcast_join_count = 12, but the executed plan shows only 2 Window operators, ~4 Sorts, ~4 Exchanges, a 2-stage HashAggregate and 2 BroadcastHashJoins. The counts appear aggregated across the formatted/executed/cost excerpts.",
+    "EXPLAIN COST reports fact_sales as rowCount=0 / sizeInBytes=1.0 B. That statistic is untrustworthy (the query produced output), so cardinality reasoning about the fact side is unreliable.",
+    "indicator_summary.estimated_size_in_bytes_max (2411724) and estimated_row_count_max (25000) reflect dim_customer, not the fact table - there is no usable size estimate for fact_sales.",
+    "shuffle_read_bytes and shuffle_write_bytes are both 0 despite shuffle Exchanges being present; with this little data that may be genuine, or the metrics may not have been captured.",
+    "Plan excerpts were truncated to 4000 chars and file paths masked (see trimming_notes), so lower operator detail is not visible."
+  ],
+  "confidence": "medium"
+}

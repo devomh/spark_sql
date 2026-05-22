@@ -44,6 +44,7 @@ Respond with a single JSON object and nothing else. The object must conform to t
 ## Rules
 
 - Ground every claim in `plan_excerpts`, `indicator_summary`, `runtime_metrics`, or `alerts`. Do not invent operator names or numbers.
+- Cross-check `indicator_summary` operator counts against the operators actually visible in `plan_excerpts`. These counts may be inflated (e.g. summed across the formatted/executed/cost excerpts). When a count and the plan excerpt disagree, treat the plan as authoritative — describe what the plan shows, and note the discrepancy under `warnings`.
 - If `runtime_metrics.*` is `null`, do not infer a value — flag it under `warnings`.
 - If `indicator_summary.estimated_size_in_bytes_max` is `null`, statistics are likely missing — call this out and suggest `ANALYZE TABLE`.
 - Reuse the language from any `alerts` entries: if `task_skew_detected` is present, mention skew explicitly with the alert's ratio.

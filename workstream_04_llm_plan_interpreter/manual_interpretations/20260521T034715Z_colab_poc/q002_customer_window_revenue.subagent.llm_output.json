@@ -1,0 +1,38 @@
+{
+  "summary": "This query builds per-customer daily revenue from a three-table inner join (fact_sales, dim_customer, dim_date), then applies two window functions partitioned by customer_id (a 7-day rolling sum and a row_number ranking) to return each customer's top 3 revenue days. The dominant cost is the window/sort pipeline: 18 window operators and 16 sorts feeding a top-N rank, though absolute runtime is small.",
+  "expensive_parts": [
+    {
+      "operator": "Window",
+      "reason": "Two window functions partitioned by customer_id (rolling 7-day sum and row_number ranking) require repartitioning and sorting the aggregated rows; the indicator summary counts 18 window operators, the largest category in the plan.",
+      "evidence": "indicator_summary.window_count = 18; \"Window [row_number() windowspecdefinition(customer_id#15271L, daily_revenue#15402 DESC NULLS LAST, sale_date#15282 DESC NULLS LAST...\""
+    },
+    {
+      "operator": "Sort",
+      "reason": "Each window and the final ORDER BY needs its data sorted; the rules engine raised many_sorts because 16 sorts exceed the threshold of 4.",
+      "evidence": "alert many_sorts (value=16, threshold=4); \"Sort [customer_id#15271L ASC NULLS FIRST, daily_revenue#15402 DESC NULLS LAST, sale_date#15282 DESC NULLS LAST], false, 0\""
+    },
+    {
+      "operator": "Exchange",
+      "reason": "Hash repartitioning on customer_id (and the grouping keys) before the HashAggregate and window operators contributes shuffle boundaries; the rules engine raised many_exchanges because 12 exchanges exceed the threshold of 2.",
+      "evidence": "alert many_exchanges (value=12, threshold=2); \"Exchange hashpartitioning(customer_id#15271L, 8), ENSURE_REQUIREMENTS\""
+    },
+    {
+      "operator": "BroadcastHashJoin",
+      "reason": "The two dimension joins (dim_customer ~25,000 rows, dim_date 730 rows) are executed as broadcast hash joins, which is the appropriate strategy for small dimensions and is not a concern here.",
+      "evidence": "indicator_summary.broadcast_join_count = 12; \"BroadcastHashJoin [date_id#15270], [date_id#15281], Inner, BuildLeft\""
+    }
+  ],
+  "suggestions": [
+    "Run ANALYZE TABLE ws2_poc.fact_sales COMPUTE STATISTICS so the fact table's row count and size are populated; the optimized plan currently shows Statistics(sizeInBytes=1.0 B, rowCount=0) for fact_sales, which makes all downstream estimates unreliable.",
+    "Once fact_sales statistics exist, re-run EXPLAIN COST to confirm the broadcast joins are still chosen and the estimated plan size reflects real fact-table volume.",
+    "The plan already includes WindowGroupLimit for the row_number() <= 3 filter, so the top-N is pushed down efficiently; no rank-rewrite is needed. Focus tuning on verifying statistics rather than restructuring the windows.",
+    "Confirm spark.sql.shuffle.partitions=8 is appropriate after fact_sales stats are known; with a near-empty fact table the current setting is fine, but a larger fact volume may warrant revisiting it."
+  ],
+  "warnings": [
+    "fact_sales reports row_count=0 and the optimized logical plan shows Statistics(sizeInBytes=1.0 B, rowCount=0) for it; statistics are effectively missing, so estimated_size_in_bytes_max (2,411,724) and estimated_row_count_max (25,000) reflect only dim_customer and cannot be trusted as the query's true cost.",
+    "size_bytes is null for all three tables in the package, so table-size-based reasoning relies on row counts only.",
+    "runtime_metrics show shuffle_read_bytes, shuffle_write_bytes, and spill_bytes all 0 and task_count=1, consistent with an essentially empty fact table; these metrics likely do not represent a realistic data volume.",
+    "databricks_runtime is null (environment is colab-standalone), so runtime-specific behavior is not considered."
+  ],
+  "confidence": "low"
+}
